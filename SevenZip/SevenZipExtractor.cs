@@ -7,7 +7,7 @@ namespace SevenZip
     using System.Globalization;
     using System.IO;
     using System.Linq;
-
+    using SevenZip.EventArguments;
     using SevenZip.Sdk.Compression.Lzma;
 
     /// <summary>
@@ -659,6 +659,7 @@ namespace SevenZip
             aec.FileExtractionStarted += FileExtractionStartedEventProxy;
             aec.FileExtractionFinished += FileExtractionFinishedEventProxy;            
             aec.Extracting += ExtractingEventProxy;
+            aec.Progressing += ProgressingEventProxy;
             aec.FileExists += FileExistsEventProxy;
         }
 
@@ -702,6 +703,7 @@ namespace SevenZip
             callback.FileExtractionStarted -= FileExtractionStartedEventProxy;
             callback.FileExtractionFinished -= FileExtractionFinishedEventProxy;
             callback.Extracting -= ExtractingEventProxy;
+            callback.Progressing -= ProgressingEventProxy;
             callback.FileExists -= FileExistsEventProxy;
         }
 
@@ -831,8 +833,15 @@ namespace SevenZip
         /// <summary>
         /// Occurs when data are being extracted.
         /// </summary>
-        /// <remarks>Use this event for accurate progress handling and various ProgressBar.StepBy(e.PercentDelta) routines.</remarks>
+        /// <remarks>This event does not seem to be accurate for total progress.</remarks>
         public event EventHandler<ProgressEventArgs> Extracting;
+
+        /// <summary>
+        /// Occurs when the 7z library indicates work has been done
+        /// </summary>
+        /// <remarks>Use this event for your own handling of progress. It does not implement delta StepBy calls.</remarks>
+        public event EventHandler<DetailedProgressEventArgs> Progressing;
+
 
         /// <summary>
         /// Occurs during the extraction when a file already exists.
@@ -849,6 +858,16 @@ namespace SevenZip
         private void FileExtractionStartedEventProxy(object sender, FileInfoEventArgs e)
         {
             OnEvent(FileExtractionStarted, e, true);
+        }
+
+        /// <summary>
+        /// Event proxy for Progressing.
+        /// </summary>
+        /// <param name="sender">The sender of the event.</param>
+        /// <param name="e">The event arguments.</param>
+        private void ProgressingEventProxy(object sender, DetailedProgressEventArgs e)
+        {
+            OnEvent(Progressing, e, false);
         }
 
         /// <summary>

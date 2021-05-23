@@ -1,5 +1,6 @@
 namespace SevenZip
 {
+    using SevenZip.EventArguments;
     using System;
     using System.Collections.Generic;
     using System.Globalization;
@@ -152,9 +153,62 @@ namespace SevenZip
         public event EventHandler<ProgressEventArgs> Extracting;
 
         /// <summary>
+        /// Occurs when 7z library has made progress on an operation
+        /// </summary>
+        public event EventHandler<DetailedProgressEventArgs> Progressing;
+
+        /// <summary>
         /// Occurs during the extraction when a file already exists
         /// </summary>
         public event EventHandler<FileOverwriteEventArgs> FileExists;
+
+        private void OnFileExists(FileOverwriteEventArgs e)
+        {
+            if (FileExists != null)
+            {
+                FileExists(this, e);
+            }
+        }
+
+        private void OnOpen(OpenEventArgs e)
+        {
+            if (Open != null)
+            {
+                Open(this, e);
+            }
+        }
+
+        private void OnFileExtractionStarted(FileInfoEventArgs e)
+        {
+            if (FileExtractionStarted != null)
+            {
+                FileExtractionStarted(this, e);
+            }
+        }
+
+        private void OnFileExtractionFinished(FileInfoEventArgs e)
+        {
+            if (FileExtractionFinished != null)
+            {
+                FileExtractionFinished(this, e);
+            }
+        }
+
+        private void OnExtracting(ProgressEventArgs e)
+        {
+            if (Extracting != null)
+            {
+                Extracting(this, e);
+            }
+        }
+
+        private void OnProgressing(DetailedProgressEventArgs e)
+        {
+            if (Progressing != null)
+            {
+                Progressing(this, e);
+            }
+        }
 
         private void IntEventArgsHandler(object sender, IntEventArgs e)
         {
@@ -192,7 +246,14 @@ namespace SevenZip
             Open?.Invoke(this, new OpenEventArgs(total));
         }
 
-        public void SetCompleted(ref ulong completeValue) { }
+        /// <summary>
+        /// Sets the amount of work that has been completed.
+        /// </summary>
+        /// <param name="completeValue">Amount of work that has been completed (in bytes)</param>
+        public void SetCompleted(ref ulong completeValue)
+        {
+            OnProgressing(new DetailedProgressEventArgs(completeValue, (ulong)_bytesCount));
+        }
 
         /// <summary>
         /// Sets output stream for writing unpacked data
@@ -416,7 +477,7 @@ namespace SevenZip
                     case OperationResult.UnexpectedEnd:
                         AddException(new ExtractionFailedException("Unexpected end of file."));
                         break;
-                    case OperationResult.DataAfterEnd: 
+                    case OperationResult.DataAfterEnd:
                         AddException(new ExtractionFailedException("Data after end of archive."));
                         break;
                     case OperationResult.IsNotArc:
@@ -445,10 +506,9 @@ namespace SevenZip
                     catch (ObjectDisposedException) { }
                     _fileStream = null;
                 }
-
-                var iea = new FileInfoEventArgs(_extractor.ArchiveFileData[_currentIndex], PercentDoneEventArgs.ProducePercentDone(_doneRate));
-                FileExtractionFinished?.Invoke(this, iea);
-                
+                var iea = new FileInfoEventArgs(
+                    _extractor.ArchiveFileData[_currentIndex], PercentDoneEventArgs.ProducePercentDone(_doneRate));
+                OnFileExtractionFinished(iea);
                 if (iea.Cancel)
                 {
                     Canceled = true;
